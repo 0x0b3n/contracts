@@ -314,13 +314,75 @@ describe("OverlayerWrap Backing Protocol", function () {
   });
 
   describe("AAVE Integration Management", function () {
-    it("Should update AAVE protocol contract address", async function () {
+    it("Should update AAVE protocol contract address when backing holds no aTokens", async function () {
       const { overlayerWrapBacking, admin } = await loadFixture(deployFixture);
       await overlayerWrapBacking.proposeNewAave(admin.address);
       await time.increase(10 * 24 * 60 * 60);
+      await expect(
+        overlayerWrapBacking.connect(admin).acceptProposedAave()
+      ).to.emit(overlayerWrapBacking, "AaveNewAave");
+    });
+
+    it("Should revert Aave migration while backing holds aToken collateral", async function () {
+      const { usdt, overlayerWrap, overlayerWrapBacking, admin, alice } =
+        await loadFixture(deployFixture);
+
+      const amount = "100";
+      await overlayerWrap.connect(alice).mint({
+        benefactor: alice.address,
+        beneficiary: alice.address,
+        collateral: await usdt.getAddress(),
+        collateralAmount: ethers.parseUnits(amount, await usdt.decimals()),
+        overlayerWrapAmount: ethers.parseEther(amount)
+      });
+      await overlayerWrap.connect(alice).supplyToBacking(0, 0);
+
       expect(
-        await overlayerWrapBacking.connect(admin).acceptProposedAave()
-      ).to.emit(overlayerWrapBacking, "AaveNewAaave");
+        await overlayerWrapBacking.connect(admin).proposeNewAave(admin.address)
+      ).to.emit(overlayerWrapBacking, "AaveProposedNewAave");
+      await time.increase(10 * 24 * 60 * 60);
+
+      await expect(
+        overlayerWrapBacking.connect(admin).acceptProposedAave()
+      ).to.be.revertedWithCustomError(
+        overlayerWrapBacking,
+        "AaveHandlerMigrationWithActiveBacking"
+      );
+    });
+
+    it("Should allow Aave pool switch after adminWithdraw clears handler aTokens", async function () {
+      const { usdt, overlayerWrap, overlayerWrapBacking, admin, alice, ausdt } =
+        await loadFixture(deployFixture);
+
+      const amount = "50";
+      await overlayerWrap.connect(alice).mint({
+        benefactor: alice.address,
+        beneficiary: alice.address,
+        collateral: await usdt.getAddress(),
+        collateralAmount: ethers.parseUnits(amount, await usdt.decimals()),
+        overlayerWrapAmount: ethers.parseEther(amount)
+      });
+      await overlayerWrap.connect(alice).supplyToBacking(0, 0);
+
+      expect(
+        await ausdt.balanceOf(await overlayerWrapBacking.getAddress())
+      ).to.be.gt(0n);
+
+      await expect(overlayerWrapBacking.connect(admin).adminWithdraw()).to.emit(
+        overlayerWrapBacking,
+        "AaveAdminWithdraw"
+      );
+
+      expect(
+        await ausdt.balanceOf(await overlayerWrapBacking.getAddress())
+      ).to.equal(0n);
+
+      await overlayerWrapBacking.connect(admin).proposeNewAave(admin.address);
+      await time.increase(10 * 24 * 60 * 60);
+
+      await expect(
+        overlayerWrapBacking.connect(admin).acceptProposedAave()
+      ).to.emit(overlayerWrapBacking, "AaveNewAave");
     });
   });
 

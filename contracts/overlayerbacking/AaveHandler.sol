@@ -270,12 +270,16 @@ abstract contract AaveHandler is
     }
 
     ///@notice Accept the proposed aave contract
+    ///@dev Reverts if any aToken balance remains: switching pools without migrating the position strands collateral on the old pool.
     function acceptProposedAave() external onlyOwner nonReentrant {
         if (
             aave != address(0) &&
             aaveProposalTime + PROPOSAL_TIME_INTERVAL > block.timestamp
         ) {
             revert AaveIntervalNotRespected();
+        }
+        if (IERC20(aCollateral).balanceOf(address(this)) > 0) {
+            revert AaveHandlerMigrationWithActiveBacking();
         }
         address oldAave = aave;
         aave = proposedAave;

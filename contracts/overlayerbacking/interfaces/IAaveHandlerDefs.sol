@@ -43,6 +43,9 @@ interface IAaveHandlerDefs {
     /// @notice Error thrown when time interval requirement is not met
     error AaveIntervalNotRespected();
 
+    /// @notice Error thrown when accepting a new Aave pool while this contract still holds aTokens (position not migrated)
+    error AaveHandlerMigrationWithActiveBacking();
+
     /// @notice Emitted when an Aave action fails with details
     event AaveActionFailed(string message, bytes reason);
 
