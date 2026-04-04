@@ -276,6 +276,7 @@ abstract contract AaveHandler is
     ///@notice Accept the proposed aave contract
     ///@dev Reverts if any aToken balance remains: switching pools without migrating the position strands collateral on the old pool.
     function acceptProposedAave() external onlyOwner nonReentrant {
+        if (proposedAave == address(0)) revert AaveHandlerNoProposal();
         if (
             aave != address(0) &&
             aaveProposalTime + PROPOSAL_TIME_INTERVAL > block.timestamp
@@ -287,6 +288,9 @@ abstract contract AaveHandler is
         }
         address oldAave = aave;
         aave = proposedAave;
+        // Clear proposal state
+        proposedAave = address(0);
+        aaveProposalTime = 0;
         // Remove allowance of old spender
         if (oldAave != address(0)) {
             IERC20(collateral).forceApprove(oldAave, 0);
@@ -298,6 +302,8 @@ abstract contract AaveHandler is
 
     ///@notice Accept the proposed team allocation
     function acceptProposedOvaDispatcherAllocation() external onlyOwner {
+        if (proposedOvaDispatcherAllocation == 0)
+            revert AaveHandlerNoProposal();
         if (
             ovaDispatcherAllocationProposalTime + PROPOSAL_TIME_INTERVAL >
             block.timestamp
@@ -306,8 +312,11 @@ abstract contract AaveHandler is
         }
         ovaDispatcherAllocation = proposedOvaDispatcherAllocation;
         stakedOverlayerWrapRewardsAllocation = 100 - ovaDispatcherAllocation;
+        // Clear proposal state
+        proposedOvaDispatcherAllocation = 0;
+        ovaDispatcherAllocationProposalTime = 0;
 
-        emit AaveNewTeamAllocation(ovaDispatcherAllocation);
+        emit OvaDispatcherAllocationUpdated(ovaDispatcherAllocation);
     }
 
     ///@notice Update protocol dispatcher

@@ -43,6 +43,9 @@ interface IAaveHandlerDefs {
     /// @notice Error thrown when time interval requirement is not met
     error AaveIntervalNotRespected();
 
+    /// @notice Error thrown when attempting to accept without a pending proposal
+    error AaveHandlerNoProposal();
+
     /// @notice Error thrown when accepting a new Aave pool while this contract still holds aTokens (position not migrated)
     error AaveHandlerMigrationWithActiveBacking();
 
@@ -59,7 +62,7 @@ interface IAaveHandlerDefs {
     event AaveNewAave(address indexed addr);
 
     /// @notice Emitted when team allocation percentage changes
-    event AaveNewTeamAllocation(uint8 amount);
+    event OvaDispatcherAllocationUpdated(uint8 amount);
 
     /// @notice Emitted when rewards dispatcher address changes
     event AaveNewRewardsDispatcher(address indexed addr);

@@ -384,18 +384,46 @@ describe("OverlayerWrap Backing Protocol", function () {
         overlayerWrapBacking.connect(admin).acceptProposedAave()
       ).to.emit(overlayerWrapBacking, "AaveNewAave");
     });
+
+    it("Should reject acceptProposedAave without a pending proposal", async function () {
+      const { overlayerWrapBacking, admin } = await loadFixture(deployFixture);
+      // Calling accept without proposing first should revert
+      await expect(
+        overlayerWrapBacking.connect(admin).acceptProposedAave()
+      ).to.be.revertedWithCustomError(
+        overlayerWrapBacking,
+        "AaveHandlerNoProposal"
+      );
+      // Normal flow should still work
+      await overlayerWrapBacking.proposeNewAave(admin.address);
+      await time.increase(10 * 24 * 60 * 60);
+      await expect(
+        overlayerWrapBacking.connect(admin).acceptProposedAave()
+      ).to.emit(overlayerWrapBacking, "AaveNewAave");
+      expect(await overlayerWrapBacking.aave()).to.equal(admin.address);
+    });
   });
 
   describe("Team Allocation Management", function () {
-    it("Should modify team reward allocation parameters", async function () {
+    it("Should reject acceptProposedOvaDispatcherAllocation without a pending proposal", async function () {
       const { overlayerWrapBacking, admin } = await loadFixture(deployFixture);
-      await overlayerWrapBacking.proposeNewOvaDispatcherAllocation(10);
-      await time.increase(10 * 24 * 60 * 60);
-      expect(
-        await overlayerWrapBacking
+      // Calling accept without proposing first should revert
+      await expect(
+        overlayerWrapBacking
           .connect(admin)
           .acceptProposedOvaDispatcherAllocation()
-      ).to.emit(overlayerWrapBacking, "AaveNewTeamAllocation");
+      ).to.be.revertedWithCustomError(
+        overlayerWrapBacking,
+        "AaveHandlerNoProposal"
+      );
+      // Normal flow should still work
+      await overlayerWrapBacking.proposeNewOvaDispatcherAllocation(10);
+      await time.increase(10 * 24 * 60 * 60);
+      await expect(
+        overlayerWrapBacking
+          .connect(admin)
+          .acceptProposedOvaDispatcherAllocation()
+      ).to.emit(overlayerWrapBacking, "OvaDispatcherAllocationUpdated");
     });
   });
 
