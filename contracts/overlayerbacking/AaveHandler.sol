@@ -186,7 +186,10 @@ abstract contract AaveHandler is
             stakedOverlayerWrapRewardsAllocation,
             100
         );
-        IsOverlayerWrap(sOverlayerWrap).transferInRewards(amountToStaking);
+        // transferInRewards will revert on 0 amounts
+        if (amountToStaking > 0) {
+            IsOverlayerWrap(sOverlayerWrap).transferInRewards(amountToStaking);
+        }
 
         IERC20(overlayerWrap).safeTransfer(
             ovaRewardsDispatcher,
