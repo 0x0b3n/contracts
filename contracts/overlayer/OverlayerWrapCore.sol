@@ -389,13 +389,15 @@ abstract contract OverlayerWrapCore is
 
         if (checkedBurnAmount == 0) return (0, 0);
 
-        if (
-            redeemedPerBlock[block.number] + checkedBurnAmount >
-            maxRedeemPerBlock &&
-            !maxRedeemWhitelist[msg.sender]
-        ) revert OverlayerWrapCoreMaxRedeemPerBlockExceeded();
-        // Add to the redeemed amount in this block
-        redeemedPerBlock[block.number] += checkedBurnAmount;
+        // Whitelisted users are exempt from the maxRedeemPerBlock limit
+        if (!maxRedeemWhitelist[msg.sender]) {
+            if (
+                redeemedPerBlock[block.number] + checkedBurnAmount >
+                maxRedeemPerBlock
+            ) revert OverlayerWrapCoreMaxRedeemPerBlockExceeded();
+            // Add to the redeemed amount in this block only for non-whitelisted users
+            redeemedPerBlock[block.number] += checkedBurnAmount;
+        }
 
         _transferToBeneficiary(
             order_.beneficiary,

@@ -575,6 +575,64 @@ describe("OverlayerWrap", function () {
       await overlayerWrap.connect(alice).redeem(redeemTooHigh);
     });
 
+    it("Should not consume global counter when whitelisted user redeems", async function () {
+      const { overlayerWrap, admin, alice, bob, collateral } =
+        await loadFixture(deployFixture);
+
+      // Set a low maxRedeemPerBlock limit (10 tokens)
+      await overlayerWrap
+        .connect(admin)
+        .setMaxMintPerBlock(ethers.parseEther("100000000"));
+      await overlayerWrap
+        .connect(admin)
+        .proposeMaxRedeemPerBlock(ethers.parseEther("10"));
+      await time.increase(60 * 60 * 24 * 16);
+      await overlayerWrap.connect(admin).executeMaxRedeemPerBlockChange();
+
+      // Mint 50 to alice (whitelisted) and 10 to bob (regular user)
+      const amountAlice = "50";
+      const amountBob = "10";
+      const orderAlice = {
+        benefactor: alice.address,
+        beneficiary: alice.address,
+        collateral: await collateral.getAddress(),
+        collateralAmount: ethers.parseUnits(
+          amountAlice,
+          await collateral.decimals()
+        ),
+        overlayerWrapAmount: ethers.parseEther(amountAlice)
+      };
+      const orderBob = {
+        benefactor: bob.address,
+        beneficiary: bob.address,
+        collateral: await collateral.getAddress(),
+        collateralAmount: ethers.parseUnits(
+          amountBob,
+          await collateral.decimals()
+        ),
+        overlayerWrapAmount: ethers.parseEther(amountBob)
+      };
+      await overlayerWrap.connect(alice).mint(orderAlice);
+      await overlayerWrap.connect(bob).mint(orderBob);
+
+      // Whitelist alice
+      await overlayerWrap
+        .connect(admin)
+        .whitelistMaxRedeemPerBlockUser(alice.address, true);
+
+      // Alice (whitelisted) redeems 50 (exceeds maxRedeemPerBlock=10)
+      const redeemAlice = {
+        ...orderAlice,
+        collateralAmount: ethers.parseUnits("50", await collateral.decimals()),
+        overlayerWrapAmount: ethers.parseEther("50")
+      };
+      await overlayerWrap.connect(alice).redeem(redeemAlice);
+
+      // Bob (regular user) should still be able to redeem his 10 tokens
+      // If the bug existed, alice's redemption would have saturated the counter
+      await overlayerWrap.connect(bob).redeem(orderBob);
+    });
+
     it("Should enforce minVal on maxRedeemPerBlock updates", async function () {
       const { overlayerWrap, admin } = await loadFixture(deployFixture);
       // Current minVal is 1, proposing 0 should revert in execute and in direct setter logic
